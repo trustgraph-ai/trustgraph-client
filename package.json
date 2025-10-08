@@ -1,0 +1,49 @@
+{
+  "name": "@trustgraph/client",
+  "version": "0.1.0",
+  "description": "TypeScript client for TrustGraph",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "prettify": "prettier --write ."
+  },
+  "keywords": [
+    "trustgraph",
+    "websocket",
+    "typescript",
+    "client"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.37.0",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/ui": "^3.2.4",
+    "eslint": "^8.57.1",
+    "globals": "^16.4.0",
+    "happy-dom": "^19.0.2",
+    "jiti": "^2.6.1",
+    "prettier": "^3.6.2",
+    "rollup": "^4.9.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.46.0",
+    "vitest": "^3.2.4"
+  }
+}
