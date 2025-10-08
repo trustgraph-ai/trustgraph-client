@@ -313,4 +313,7 @@ Full API documentation is available in the TypeScript definitions. Your IDE will
 
 ## License
 
-MIT
+Apache 2.0
+
+(c) KnowNext Inc., KnowNext Limited 2025
+
