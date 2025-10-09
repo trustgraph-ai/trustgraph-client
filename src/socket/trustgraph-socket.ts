@@ -659,7 +659,6 @@ export class LibrarianApi {
    * @param title - Document title
    * @param comments - Additional comments
    * @param tags - Document tags for categorization
-   * @param user - User identifier
    */
   loadDocument(
     document: string, // base64-encoded doc
@@ -667,7 +666,6 @@ export class LibrarianApi {
     title: string,
     comments: string,
     tags: string[],
-    user: string,
     id?: string,
     metadata?: Triple[],
   ) {
@@ -682,7 +680,7 @@ export class LibrarianApi {
           title: title,
           comments: comments,
           metadata: metadata,
-          user: user ? user : "trustgraph",
+          user: this.api.user,
           tags: tags,
         },
         content: document,
@@ -712,7 +710,6 @@ export class LibrarianApi {
    * @param id - Processing job identifier
    * @param doc_id - Document to process
    * @param flow - Processing flow to use
-   * @param user - User identifier
    * @param collection - Collection to add processed data to
    * @param tags - Tags for the processing job
    */
@@ -720,7 +717,6 @@ export class LibrarianApi {
     id: string,
     doc_id: string,
     flow: string,
-    user?: string,
     collection?: string,
     tags?: string[],
   ) {
@@ -733,7 +729,7 @@ export class LibrarianApi {
           "document-id": doc_id,
           time: Math.floor(Date.now() / 1000),
           flow: flow,
-          user: user ? user : "trustgraph",
+          user: this.api.user,
           collection: collection ? collection : "default",
           tags: tags ? tags : [],
         },
@@ -1601,15 +1597,14 @@ export class CollectionManagementApi {
   }
 
   /**
-   * Lists all collections for a user with optional tag filtering
-   * @param user - User identifier
+   * Lists all collections for the current user with optional tag filtering
    * @param tagFilter - Optional array of tags to filter collections
    * @returns Promise resolving to array of collection metadata
    */
-  listCollections(user: string, tagFilter?: string[]) {
+  listCollections(tagFilter?: string[]) {
     const request: Record<string, unknown> = {
       operation: "list-collections",
-      user,
+      user: this.api.user,
     };
 
     if (tagFilter && tagFilter.length > 0) {
@@ -1625,8 +1620,7 @@ export class CollectionManagementApi {
   }
 
   /**
-   * Creates or updates a collection
-   * @param user - User identifier
+   * Creates or updates a collection for the current user
    * @param collection - Collection ID (unique identifier)
    * @param name - Display name for the collection
    * @param description - Description of the collection
@@ -1634,7 +1628,6 @@ export class CollectionManagementApi {
    * @returns Promise resolving to updated collection metadata
    */
   updateCollection(
-    user: string,
     collection: string,
     name?: string,
     description?: string,
@@ -1642,7 +1635,7 @@ export class CollectionManagementApi {
   ) {
     const request: Record<string, unknown> = {
       operation: "update-collection",
-      user,
+      user: this.api.user,
       collection,
     };
 
@@ -1674,12 +1667,11 @@ export class CollectionManagementApi {
   }
 
   /**
-   * Deletes a collection and all its data
-   * @param user - User identifier
+   * Deletes a collection and all its data for the current user
    * @param collection - Collection ID to delete
    * @returns Promise resolving when deletion is complete
    */
-  deleteCollection(user: string, collection: string) {
+  deleteCollection(collection: string) {
     return this.api.makeRequest<
       Record<string, unknown>,
       Record<string, unknown>
@@ -1687,7 +1679,7 @@ export class CollectionManagementApi {
       "collection-management",
       {
         operation: "delete-collection",
-        user,
+        user: this.api.user,
         collection,
       },
       30000,
