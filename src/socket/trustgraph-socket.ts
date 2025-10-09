@@ -627,11 +627,11 @@ export class LibrarianApi {
         "librarian",
         {
           operation: "list-documents",
-          user: "trustgraph",
+          user: this.api.user,
         },
         60000, // 60 second timeout for potentially large lists
       )
-      .then((r) => r["document-metadatas"]);
+      .then((r) => r["document-metadatas"] || []);
   }
 
   /**
@@ -643,11 +643,11 @@ export class LibrarianApi {
         "librarian",
         {
           operation: "list-processing",
-          user: "trustgraph",
+          user: this.api.user,
         },
         60000,
       )
-      .then((r) => r["processing-metadata"]);
+      .then((r) => r["processing-metadata"] || []);
   }
 
   /**
@@ -1507,11 +1507,11 @@ export class KnowledgeApi {
         "knowledge",
         {
           operation: "list-kg-cores",
-          user: "trustgraph",
+          user: this.api.user,
         },
         60000,
       )
-      .then((r) => r.ids);
+      .then((r) => r.ids || []);
   }
 
   /**
