@@ -1,6 +1,6 @@
 {
   "name": "@trustgraph/client",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "TypeScript client for TrustGraph",
   "type": "module",
   "main": "dist/index.esm.js",
@@ -45,7 +45,7 @@
     "@vitest/ui": "^3.2.4",
     "eslint": "^8.57.1",
     "globals": "^16.4.0",
-    "happy-dom": "^19.0.2",
+    "happy-dom": "^20.0.10",
     "jiti": "^2.6.1",
     "prettier": "^3.6.2",
     "rollup": "^4.9.0",
