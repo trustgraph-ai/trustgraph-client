@@ -5,7 +5,8 @@ import { ServiceCall } from "./service-call";
 
 // Import all message types for different services
 import {
-  //  AgentRequest,
+  AgentRequest,
+  AgentResponse,
   ConfigRequest,
   ConfigResponse,
   //  DocumentMetadata,
@@ -31,6 +32,8 @@ import {
   NlpQueryResponse,
   ObjectsQueryRequest,
   ObjectsQueryResponse,
+  PromptRequest,
+  PromptResponse,
   //  ProcessingMetadata,
   RequestMessage,
   StructuredQueryRequest,
@@ -75,12 +78,42 @@ export interface Socket {
   graphRag: (text: string, options?: GraphRagOptions) => Promise<string>;
 
   // Agent interaction with streaming callbacks for different phases
+  // BREAKING CHANGE: Callbacks now receive (chunk, complete) instead of full messages
   agent: (
     question: string,
-    think: (t: string) => void, // Called when agent is thinking
-    observe: (t: string) => void, // Called when agent makes observations
-    answer: (t: string) => void, // Called when agent provides final answer
-    error: (e: string) => void, // Called on errors
+    think: (chunk: string, complete: boolean) => void,
+    observe: (chunk: string, complete: boolean) => void,
+    answer: (chunk: string, complete: boolean) => void,
+    error: (e: string) => void,
+  ) => void;
+
+  // Streaming variants for RAG and completion services
+  graphRagStreaming: (
+    text: string,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+    options?: GraphRagOptions,
+  ) => void;
+
+  documentRagStreaming: (
+    text: string,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+    docLimit?: number,
+  ) => void;
+
+  textCompletionStreaming: (
+    system: string,
+    text: string,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+  ) => void;
+
+  promptStreaming: (
+    id: string,
+    terms: Record<string, unknown>,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
   ) => void;
 
   // Generate embeddings for text
@@ -1061,62 +1094,255 @@ export class FlowApi {
 
   /**
    * Interacts with an AI agent that provides streaming responses
+   * BREAKING CHANGE: Callbacks now receive (chunk, complete) instead of full messages
    */
   agent(
     question: string,
-    think: (s: string) => void, // Called when agent is thinking
-    observe: (s: string) => void, // Called when agent observes something
-    answer: (s: string) => void, // Called when agent provides answer
-    error: (s: string) => void, // Called on errors
+    think: (chunk: string, complete: boolean) => void,
+    observe: (chunk: string, complete: boolean) => void,
+    answer: (chunk: string, complete: boolean) => void,
+    error: (s: string) => void,
   ) {
-    // Create a receiver function to handle streaming responses
     const receiver = (response: unknown) => {
-      console.log("Agent response received:", response);
+      const resp = response as AgentResponse;
 
-      const resp = response as Record<string, unknown>;
-
-      // Check for backend errors
-      if (resp.error) {
-        const errorObj = resp.error as Record<string, unknown>;
+      // Check for errors
+      if (resp.chunk_type === "error" || resp.error) {
         const errorMessage =
-          (typeof errorObj.message === "string" ? errorObj.message : null) ||
-          "Unknown agent error";
-        error(`Agent error: ${errorMessage}`);
+          resp.content || resp.error || "Unknown agent error";
+        error(
+          typeof errorMessage === "string" ? errorMessage : String(errorMessage),
+        );
         return true; // End streaming on error
       }
 
-      // Handle different response types
-      if (typeof resp.thought === "string") think(resp.thought);
-      if (typeof resp.observation === "string") observe(resp.observation);
-      if (typeof resp.answer === "string") {
-        answer(resp.answer);
-        return true; // End streaming when final answer is received
+      // Handle streaming chunks by chunk_type
+      const content = resp.content || "";
+      const messageComplete = !!resp.end_of_message;
+      const dialogComplete = !!resp.end_of_dialog;
+
+      switch (resp.chunk_type) {
+        case "thought":
+          think(content, messageComplete);
+          break;
+        case "observation":
+          observe(content, messageComplete);
+          break;
+        case "final-answer":
+          answer(content, messageComplete);
+          break;
+        case "action":
+          // Actions are typically not streamed incrementally, just logged
+          console.log("Agent action:", content);
+          break;
       }
 
-      return false; // Continue streaming
+      return dialogComplete; // End when backend signals end_of_dialog
     };
 
-    // Use the existing makeRequestMulti infrastructure
     return this.api
-      .makeRequestMulti(
+      .makeRequestMulti<AgentRequest, AgentResponse>(
         "agent",
         {
           question: question,
           user: this.api.user,
+          streaming: true, // Always use streaming mode
         },
         receiver,
-        120000, // 120 second timeout
-        2, // 2 retries
+        120000,
+        2,
         this.flowId,
       )
       .catch((err) => {
-        // Handle any errors from makeRequestMulti
         const errorMessage =
-          err instanceof Error
-            ? err.message
-            : err?.toString() || "Unknown error";
+          err instanceof Error ? err.message : err?.toString() || "Unknown error";
         error(`Agent request failed: ${errorMessage}`);
       });
+  }
+
+  /**
+   * Performs Graph RAG query with streaming response
+   * @param text - Query text
+   * @param receiver - Called for each chunk with (chunk, complete) where complete=true on final chunk
+   * @param onError - Called on error
+   * @param options - Graph RAG options
+   * @param collection - Collection name
+   */
+  graphRagStreaming(
+    text: string,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+    options?: GraphRagOptions,
+    collection?: string,
+  ): void {
+    const recv = (response: unknown): boolean => {
+      const resp = response as GraphRagResponse;
+
+      if (resp.error) {
+        onError(resp.error.message);
+        return true;
+      }
+
+      const chunk = resp.chunk || "";
+      const complete = !!resp.end_of_stream;
+
+      receiver(chunk, complete);
+
+      return complete;
+    };
+
+    this.api.makeRequestMulti<GraphRagRequest, GraphRagResponse>(
+      "graph-rag",
+      {
+        query: text,
+        user: this.api.user,
+        collection: collection || "default",
+        "entity-limit": options?.entityLimit,
+        "triple-limit": options?.tripleLimit,
+        "max-subgraph-size": options?.maxSubgraphSize,
+        "max-path-length": options?.pathLength,
+        streaming: true,
+      },
+      recv,
+      60000,
+      undefined,
+      this.flowId,
+    );
+  }
+
+  /**
+   * Performs Document RAG query with streaming response
+   * @param text - Query text
+   * @param receiver - Called for each chunk with (chunk, complete) where complete=true on final chunk
+   * @param onError - Called on error
+   * @param docLimit - Maximum documents to retrieve
+   * @param collection - Collection name
+   */
+  documentRagStreaming(
+    text: string,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+    docLimit?: number,
+    collection?: string,
+  ): void {
+    const recv = (response: unknown): boolean => {
+      const resp = response as DocumentRagResponse;
+
+      if (resp.error) {
+        onError(resp.error.message);
+        return true;
+      }
+
+      const chunk = resp.chunk || "";
+      const complete = !!resp.end_of_stream;
+
+      receiver(chunk, complete);
+
+      return complete;
+    };
+
+    this.api.makeRequestMulti<DocumentRagRequest, DocumentRagResponse>(
+      "document-rag",
+      {
+        query: text,
+        user: this.api.user,
+        collection: collection || "default",
+        "doc-limit": docLimit,
+        streaming: true,
+      },
+      recv,
+      60000,
+      undefined,
+      this.flowId,
+    );
+  }
+
+  /**
+   * Performs text completion with streaming response
+   * @param system - System prompt
+   * @param text - User prompt
+   * @param receiver - Called for each chunk with (chunk, complete) where complete=true on final chunk
+   * @param onError - Called on error
+   */
+  textCompletionStreaming(
+    system: string,
+    text: string,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+  ): void {
+    const recv = (response: unknown): boolean => {
+      const resp = response as TextCompletionResponse;
+
+      if (resp.error) {
+        onError(resp.error.message);
+        return true;
+      }
+
+      // Text completion uses 'response' field for chunks, not 'chunk'
+      const chunk = resp.response || "";
+      const complete = !!resp.end_of_stream;
+
+      receiver(chunk, complete);
+
+      return complete;
+    };
+
+    this.api.makeRequestMulti<TextCompletionRequest, TextCompletionResponse>(
+      "text-completion",
+      {
+        system: system,
+        prompt: text,
+        streaming: true,
+      },
+      recv,
+      30000,
+      undefined,
+      this.flowId,
+    );
+  }
+
+  /**
+   * Executes a prompt template with streaming response
+   * @param id - Prompt template ID
+   * @param terms - Template variables
+   * @param receiver - Called for each chunk with (chunk, complete) where complete=true on final chunk
+   * @param onError - Called on error
+   */
+  promptStreaming(
+    id: string,
+    terms: Record<string, unknown>,
+    receiver: (chunk: string, complete: boolean) => void,
+    onError: (error: string) => void,
+  ): void {
+    const recv = (response: unknown): boolean => {
+      const resp = response as PromptResponse;
+
+      if (resp.error) {
+        onError(resp.error.message);
+        return true;
+      }
+
+      // Prompt service uses 'text' field for chunks
+      const chunk = resp.text || "";
+      const complete = !!resp.end_of_stream;
+
+      receiver(chunk, complete);
+
+      return complete;
+    };
+
+    this.api.makeRequestMulti<PromptRequest, PromptResponse>(
+      "prompt",
+      {
+        id: id,
+        terms: terms,
+        streaming: true,
+      },
+      recv,
+      30000,
+      undefined,
+      this.flowId,
+    );
   }
 
   /**

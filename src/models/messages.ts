@@ -37,10 +37,17 @@ export interface GraphEmbeddings {
 export interface TextCompletionRequest {
   system: string;
   prompt: string;
+  streaming?: boolean;
 }
 
 export interface TextCompletionResponse {
   response: string;
+  // Streaming fields
+  end_of_stream?: boolean;
+  error?: {
+    message: string;
+    type?: string;
+  };
 }
 
 export interface GraphRagRequest {
@@ -51,10 +58,18 @@ export interface GraphRagRequest {
   "triple-limit"?: number; // Default: 30
   "max-subgraph-size"?: number; // Default: 1000
   "max-path-length"?: number; // Default: 2
+  streaming?: boolean;
 }
 
 export interface GraphRagResponse {
   response: string;
+  // Streaming fields
+  chunk?: string;
+  end_of_stream?: boolean;
+  error?: {
+    message: string;
+    type?: string;
+  };
 }
 
 export interface DocumentRagRequest {
@@ -62,18 +77,34 @@ export interface DocumentRagRequest {
   user?: string;
   collection?: string;
   "doc-limit"?: number; // Default: 20
+  streaming?: boolean;
 }
 
 export interface DocumentRagResponse {
   response: string;
+  // Streaming fields
+  chunk?: string;
+  end_of_stream?: boolean;
+  error?: {
+    message: string;
+    type?: string;
+  };
 }
 
 export interface AgentRequest {
   question: string;
   user?: string;
+  streaming?: boolean;
 }
 
 export interface AgentResponse {
+  // Streaming response format (new protocol)
+  chunk_type?: "thought" | "action" | "observation" | "final-answer" | "error";
+  content?: string;
+  end_of_message?: boolean;
+  end_of_dialog?: boolean;
+
+  // Legacy fields for backward compatibility with non-streaming
   thought?: string;
   observation?: string;
   answer?: string;
@@ -250,6 +281,22 @@ export interface FlowResponse {
         message?: string;
       }
     | Error;
+}
+
+export interface PromptRequest {
+  id: string;
+  terms: Record<string, unknown>;
+  streaming?: boolean;
+}
+
+export interface PromptResponse {
+  text: string;
+  // Streaming fields
+  end_of_stream?: boolean;
+  error?: {
+    message: string;
+    type?: string;
+  };
 }
 
 export type ConfigRequest = object;
