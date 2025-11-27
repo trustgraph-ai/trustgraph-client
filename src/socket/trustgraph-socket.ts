@@ -58,6 +58,13 @@ export interface GraphRagOptions {
   pathLength?: number;
 }
 
+// Metadata included in final streaming message
+export interface StreamingMetadata {
+  in_token?: number;
+  out_token?: number;
+  model?: string;
+}
+
 // Configuration constants
 const SOCKET_RECONNECTION_TIMEOUT = 2000; // 2 seconds between reconnection
 // attempts
@@ -78,26 +85,26 @@ export interface Socket {
   graphRag: (text: string, options?: GraphRagOptions) => Promise<string>;
 
   // Agent interaction with streaming callbacks for different phases
-  // BREAKING CHANGE: Callbacks now receive (chunk, complete) instead of full messages
+  // BREAKING CHANGE: Callbacks now receive (chunk, complete, metadata?) instead of full messages
   agent: (
     question: string,
-    think: (chunk: string, complete: boolean) => void,
-    observe: (chunk: string, complete: boolean) => void,
-    answer: (chunk: string, complete: boolean) => void,
+    think: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+    observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+    answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (e: string) => void,
   ) => void;
 
   // Streaming variants for RAG and completion services
   graphRagStreaming: (
     text: string,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     options?: GraphRagOptions,
   ) => void;
 
   documentRagStreaming: (
     text: string,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     docLimit?: number,
   ) => void;
@@ -105,14 +112,14 @@ export interface Socket {
   textCompletionStreaming: (
     system: string,
     text: string,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
   ) => void;
 
   promptStreaming: (
     id: string,
     terms: Record<string, unknown>,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
   ) => void;
 
@@ -193,6 +200,7 @@ export class BaseApi {
   id: number; // Counter for generating unique message IDs
   token?: string; // Optional authentication token
   user: string; // User identifier for API requests
+  socketUrl: string; // WebSocket URL
   inflight: { [key: string]: ServiceCall } = {}; // Track active requests by
   // message ID
   reconnectAttempts: number = 0; // Track reconnection attempts
@@ -204,11 +212,12 @@ export class BaseApi {
   private connectionStateListeners: ((state: ConnectionState) => void)[] = [];
   private lastError?: string;
 
-  constructor(user: string, token?: string) {
+  constructor(user: string, token?: string, socketUrl?: string) {
     this.tag = makeid(16); // Generate unique client tag
     this.id = 1; // Start message ID counter
     this.token = token; // Store authentication token
     this.user = user; // Store user identifier
+    this.socketUrl = socketUrl || SOCKET_URL; // Use provided URL or default
 
     console.log(
       "SOCKET: opening socket...",
@@ -316,8 +325,8 @@ export class BaseApi {
     try {
       // Build WebSocket URL with optional token parameter
       const wsUrl = this.token
-        ? `${SOCKET_URL}?token=${this.token}`
-        : SOCKET_URL;
+        ? `${this.socketUrl}?token=${this.token}`
+        : this.socketUrl;
       console.log(
         "SOCKET: connecting to",
         wsUrl.replace(/token=[^&]*/, "token=***"),
@@ -354,7 +363,8 @@ export class BaseApi {
 
       // Route response to the corresponding inflight request
       if (this.inflight[obj.id]) {
-        this.inflight[obj.id].onReceived(obj.response);
+        // Pass the whole message object so receiver can access 'complete' flag
+        this.inflight[obj.id].onReceived(obj);
       }
     } catch (e) {
       console.error("[socket message parse error]", e);
@@ -1094,19 +1104,27 @@ export class FlowApi {
 
   /**
    * Interacts with an AI agent that provides streaming responses
-   * BREAKING CHANGE: Callbacks now receive (chunk, complete) instead of full messages
+   * BREAKING CHANGE: Callbacks now receive (chunk, complete, metadata?) instead of full messages
    */
   agent(
     question: string,
-    think: (chunk: string, complete: boolean) => void,
-    observe: (chunk: string, complete: boolean) => void,
-    answer: (chunk: string, complete: boolean) => void,
+    think: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+    observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+    answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (s: string) => void,
   ) {
-    const receiver = (response: unknown) => {
-      const resp = response as AgentResponse;
+    const receiver = (message: unknown) => {
+      const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
 
-      // Check for errors
+      // Check for top-level error
+      if (msg.error) {
+        error(msg.error);
+        return true;
+      }
+
+      const resp = msg.response || {};
+
+      // Check for errors in response
       if (resp.chunk_type === "error" || resp.error) {
         const errorMessage =
           resp.content || resp.error || "Unknown agent error";
@@ -1119,17 +1137,22 @@ export class FlowApi {
       // Handle streaming chunks by chunk_type
       const content = resp.content || "";
       const messageComplete = !!resp.end_of_message;
-      const dialogComplete = !!resp.end_of_dialog;
+      const dialogComplete = !!msg.complete;
+
+      // Extract metadata from final message
+      const metadata: StreamingMetadata | undefined = dialogComplete && (resp.in_token || resp.out_token || resp.model)
+        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
+        : undefined;
 
       switch (resp.chunk_type) {
         case "thought":
-          think(content, messageComplete);
+          think(content, messageComplete, metadata);
           break;
         case "observation":
-          observe(content, messageComplete);
+          observe(content, messageComplete, metadata);
           break;
         case "final-answer":
-          answer(content, messageComplete);
+          answer(content, messageComplete, metadata);
           break;
         case "action":
           // Actions are typically not streamed incrementally, just logged
@@ -1137,7 +1160,7 @@ export class FlowApi {
           break;
       }
 
-      return dialogComplete; // End when backend signals end_of_dialog
+      return dialogComplete; // End when backend signals complete
     };
 
     return this.api
@@ -1170,23 +1193,37 @@ export class FlowApi {
    */
   graphRagStreaming(
     text: string,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     options?: GraphRagOptions,
     collection?: string,
   ): void {
-    const recv = (response: unknown): boolean => {
-      const resp = response as GraphRagResponse;
+    const recv = (message: unknown): boolean => {
+      const msg = message as { response?: GraphRagResponse; complete?: boolean; error?: string };
 
+      // Check for top-level error
+      if (msg.error) {
+        onError(msg.error);
+        return true;
+      }
+
+      const resp = (msg.response || {}) as GraphRagResponse;
+
+      // Check for response-level error
       if (resp.error) {
         onError(resp.error.message);
         return true;
       }
 
       const chunk = resp.chunk || "";
-      const complete = !!resp.end_of_stream;
+      const complete = !!msg.complete;
 
-      receiver(chunk, complete);
+      // Extract metadata from final message
+      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
+        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
+        : undefined;
+
+      receiver(chunk, complete, metadata);
 
       return complete;
     };
@@ -1220,23 +1257,37 @@ export class FlowApi {
    */
   documentRagStreaming(
     text: string,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     docLimit?: number,
     collection?: string,
   ): void {
-    const recv = (response: unknown): boolean => {
-      const resp = response as DocumentRagResponse;
+    const recv = (message: unknown): boolean => {
+      const msg = message as { response?: DocumentRagResponse; complete?: boolean; error?: string };
 
+      // Check for top-level error
+      if (msg.error) {
+        onError(msg.error);
+        return true;
+      }
+
+      const resp = (msg.response || {}) as DocumentRagResponse;
+
+      // Check for response-level error
       if (resp.error) {
         onError(resp.error.message);
         return true;
       }
 
       const chunk = resp.chunk || "";
-      const complete = !!resp.end_of_stream;
+      const complete = !!msg.complete;
 
-      receiver(chunk, complete);
+      // Extract metadata from final message
+      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
+        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
+        : undefined;
+
+      receiver(chunk, complete, metadata);
 
       return complete;
     };
@@ -1267,22 +1318,36 @@ export class FlowApi {
   textCompletionStreaming(
     system: string,
     text: string,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
   ): void {
-    const recv = (response: unknown): boolean => {
-      const resp = response as TextCompletionResponse;
+    const recv = (message: unknown): boolean => {
+      const msg = message as { response?: TextCompletionResponse; complete?: boolean; error?: string };
 
+      // Check for top-level error
+      if (msg.error) {
+        onError(msg.error);
+        return true;
+      }
+
+      const resp = (msg.response || {}) as TextCompletionResponse;
+
+      // Check for response-level error
       if (resp.error) {
         onError(resp.error.message);
         return true;
       }
 
-      // Text completion uses 'response' field for chunks, not 'chunk'
+      // Text completion uses 'response' field for chunks
       const chunk = resp.response || "";
-      const complete = !!resp.end_of_stream;
+      const complete = !!msg.complete;
 
-      receiver(chunk, complete);
+      // Extract metadata from final message
+      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
+        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
+        : undefined;
+
+      receiver(chunk, complete, metadata);
 
       return complete;
     };
@@ -1311,12 +1376,21 @@ export class FlowApi {
   promptStreaming(
     id: string,
     terms: Record<string, unknown>,
-    receiver: (chunk: string, complete: boolean) => void,
+    receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
   ): void {
-    const recv = (response: unknown): boolean => {
-      const resp = response as PromptResponse;
+    const recv = (message: unknown): boolean => {
+      const msg = message as { response?: PromptResponse; complete?: boolean; error?: string };
 
+      // Check for top-level error
+      if (msg.error) {
+        onError(msg.error);
+        return true;
+      }
+
+      const resp = (msg.response || {}) as PromptResponse;
+
+      // Check for response-level error
       if (resp.error) {
         onError(resp.error.message);
         return true;
@@ -1324,9 +1398,14 @@ export class FlowApi {
 
       // Prompt service uses 'text' field for chunks
       const chunk = resp.text || "";
-      const complete = !!resp.end_of_stream;
+      const complete = !!msg.complete;
 
-      receiver(chunk, complete);
+      // Extract metadata from final message
+      const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
+        ? { in_token: resp.in_token, out_token: resp.out_token, model: resp.model }
+        : undefined;
+
+      receiver(chunk, complete, metadata);
 
       return complete;
     };
@@ -1918,10 +1997,12 @@ export class CollectionManagementApi {
  * This is the main entry point for using the TrustGraph API
  * @param user - User identifier for API requests
  * @param token - Optional authentication token for secure connections
+ * @param socketUrl - Optional WebSocket URL (defaults to /api/socket for browser, provide full URL for Node.js)
  */
 export const createTrustGraphSocket = (
   user: string,
   token?: string,
+  socketUrl?: string,
 ): BaseApi => {
-  return new BaseApi(user, token);
+  return new BaseApi(user, token, socketUrl);
 };

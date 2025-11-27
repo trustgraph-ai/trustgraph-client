@@ -48,6 +48,10 @@ export interface TextCompletionResponse {
     message: string;
     type?: string;
   };
+  // Token usage (appears in final message)
+  in_token?: number;
+  out_token?: number;
+  model?: string;
 }
 
 export interface GraphRagRequest {
@@ -70,6 +74,10 @@ export interface GraphRagResponse {
     message: string;
     type?: string;
   };
+  // Token usage (appears in final message)
+  in_token?: number;
+  out_token?: number;
+  model?: string;
 }
 
 export interface DocumentRagRequest {
@@ -89,6 +97,10 @@ export interface DocumentRagResponse {
     message: string;
     type?: string;
   };
+  // Token usage (appears in final message)
+  in_token?: number;
+  out_token?: number;
+  model?: string;
 }
 
 export interface AgentRequest {
@@ -109,6 +121,11 @@ export interface AgentResponse {
   observation?: string;
   answer?: string;
   error?: string;
+
+  // Token usage (appears in final message)
+  in_token?: number;
+  out_token?: number;
+  model?: string;
 }
 
 export interface EmbeddingsRequest {
@@ -297,6 +314,10 @@ export interface PromptResponse {
     message: string;
     type?: string;
   };
+  // Token usage (appears in final message)
+  in_token?: number;
+  out_token?: number;
+  model?: string;
 }
 
 export type ConfigRequest = object;
