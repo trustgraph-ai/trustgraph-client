@@ -111,7 +111,7 @@ export interface AgentRequest {
 
 export interface AgentResponse {
   // Streaming response format (new protocol)
-  chunk_type?: "thought" | "action" | "observation" | "final-answer" | "error";
+  chunk_type?: "thought" | "action" | "observation" | "answer" | "final-answer" | "error";
   content?: string;
   end_of_message?: boolean;
   end_of_dialog?: boolean;

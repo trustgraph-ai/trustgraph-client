@@ -121,8 +121,11 @@ export class ServiceCall {
       return;
     }
 
-    // Call success callback with the response
-    this.success(resp);
+    // Extract the response field from the message object
+    // The resp parameter is the full message: {id, response, complete}
+    // We need to pass just the response field to the success callback
+    const responseData = (resp as { response?: unknown }).response;
+    this.success(responseData);
   }
 
   /**
