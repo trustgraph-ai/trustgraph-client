@@ -100,6 +100,7 @@ export interface Socket {
     receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     options?: GraphRagOptions,
+    collection?: string,
   ) => void;
 
   documentRagStreaming: (
@@ -1151,6 +1152,7 @@ export class FlowApi {
         case "observation":
           observe(content, messageComplete, metadata);
           break;
+        case "answer":
         case "final-answer":
           answer(content, messageComplete, metadata);
           break;
