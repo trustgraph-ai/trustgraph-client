@@ -1217,7 +1217,7 @@ export class FlowApi {
         return true;
       }
 
-      const chunk = resp.chunk || "";
+      const chunk = resp.response || resp.chunk || "";
       const complete = !!msg.complete;
 
       // Extract metadata from final message
@@ -1281,7 +1281,7 @@ export class FlowApi {
         return true;
       }
 
-      const chunk = resp.chunk || "";
+      const chunk = resp.response || resp.chunk || "";
       const complete = !!msg.complete;
 
       // Extract metadata from final message
