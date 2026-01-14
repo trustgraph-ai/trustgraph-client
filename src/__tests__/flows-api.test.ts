@@ -35,7 +35,7 @@ describe("FlowsApi", () => {
         {
           operation: "start-flow",
           "flow-id": "test-flow-id",
-          "class-name": "test-class",
+          "blueprint-name": "test-class",
           description: "Test description",
         },
         30000,
@@ -56,7 +56,7 @@ describe("FlowsApi", () => {
       // These properties should match FlowRequest interface
       expect(request).toHaveProperty("operation");
       expect(request).toHaveProperty("flow-id");
-      expect(request).toHaveProperty("class-name");
+      expect(request).toHaveProperty("blueprint-name");
       expect(request).toHaveProperty("description");
     });
   });
@@ -140,34 +140,34 @@ describe("FlowsApi", () => {
     });
   });
 
-  describe("getFlowClasses", () => {
-    it("should return class-names array from response", async () => {
+  describe("getFlowBlueprints", () => {
+    it("should return blueprint-names array from response", async () => {
       const mockResponse: FlowResponse = {
-        "class-names": ["class1", "class2"],
+        "blueprint-names": ["class1", "class2"],
       };
       mockApi.makeRequest.mockResolvedValue(mockResponse);
 
-      const result = await flowsApi.getFlowClasses();
+      const result = await flowsApi.getFlowBlueprints();
 
       expect(mockApi.makeRequest).toHaveBeenCalledWith(
         "flow",
         {
-          operation: "list-classes",
+          operation: "list-blueprints",
         },
         60000,
       );
       expect(result).toEqual(["class1", "class2"]);
     });
 
-    it("should handle response with class-names property correctly", async () => {
+    it("should handle response with blueprint-names property correctly", async () => {
       // This test ensures we're accessing the hyphenated property name correctly
       const mockResponse = {
-        "class-names": ["test-class"],
+        "blueprint-names": ["test-class"],
         "other-property": "should-be-ignored",
       };
       mockApi.makeRequest.mockResolvedValue(mockResponse);
 
-      const result = await flowsApi.getFlowClasses();
+      const result = await flowsApi.getFlowBlueprints();
 
       expect(result).toEqual(["test-class"]);
     });
@@ -196,7 +196,7 @@ describe("FlowsApi", () => {
     });
   });
 
-  describe("getFlowClass", () => {
+  describe("getFlowBlueprint", () => {
     it("should call makeRequest with correct parameters and parse JSON", async () => {
       const classDefinition = { type: "class", name: "test-class" };
       const mockResponse: FlowResponse = {
@@ -205,13 +205,13 @@ describe("FlowsApi", () => {
       };
       mockApi.makeRequest.mockResolvedValue(mockResponse);
 
-      const result = await flowsApi.getFlowClass("test-class");
+      const result = await flowsApi.getFlowBlueprint("test-class");
 
       expect(mockApi.makeRequest).toHaveBeenCalledWith(
         "flow",
         {
-          operation: "get-class",
-          "class-name": "test-class",
+          operation: "get-blueprint",
+          "blueprint-name": "test-class",
         },
         60000,
       );

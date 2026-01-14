@@ -278,8 +278,8 @@ export interface KnowledgeResponse {
 
 export interface FlowRequest {
   operation: string;
-  "class-name"?: string;
-  "class-definition"?: string;
+  "blueprint-name"?: string;
+  "blueprint-definition"?: string;
   description?: string;
   "flow-id"?: string;
   parameters?: Record<string, unknown>;
@@ -287,11 +287,11 @@ export interface FlowRequest {
 }
 
 export interface FlowResponse {
-  "class-names"?: string[];
+  "blueprint-names"?: string[];
   "flow-ids"?: string[];
   ids?: string[];
   flow?: string;
-  "class-definition"?: string;
+  "blueprint-definition"?: string;
   description?: string;
   error?:
     | {
