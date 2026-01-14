@@ -923,48 +923,48 @@ export class FlowsApi {
     });
   }
 
-  // Flow class management - templates for creating flows
+  // Flow blueprint management - templates for creating flows
 
   /**
-   * Retrieves list of available flow classes (templates)
+   * Retrieves list of available flow blueprints (templates)
    */
-  getFlowClasses() {
+  getFlowBlueprints() {
     return this.api
       .makeRequest<FlowRequest, FlowResponse>(
         "flow",
         {
-          operation: "list-classes",
+          operation: "list-blueprints",
         },
         60000,
       )
-      .then((r) => r["class-names"]);
+      .then((r) => r["blueprint-names"]);
   }
 
   /**
-   * Retrieves definition of a specific flow class
+   * Retrieves definition of a specific flow blueprint
    */
-  getFlowClass(name: string) {
+  getFlowBlueprint(name: string) {
     return this.api
       .makeRequest<FlowRequest, FlowResponse>(
         "flow",
         {
-          operation: "get-class",
-          "class-name": name,
+          operation: "get-blueprint",
+          "blueprint-name": name,
         },
         60000,
       )
-      .then((r) => JSON.parse(r["class-definition"] || "{}"));
+      .then((r) => JSON.parse(r["blueprint-definition"] || "{}"));
   }
 
   /**
-   * Deletes a flow class
+   * Deletes a flow blueprint
    */
-  deleteFlowClass(name: string) {
+  deleteFlowBlueprint(name: string) {
     return this.api.makeRequest<FlowRequest, FlowResponse>(
       "flow",
       {
-        operation: "delete-class",
-        "class-name": name,
+        operation: "delete-blueprint",
+        "blueprint-name": name,
       },
       30000,
     );
@@ -977,14 +977,14 @@ export class FlowsApi {
    */
   startFlow(
     id: string,
-    class_name: string,
+    blueprint_name: string,
     description: string,
     parameters?: Record<string, unknown>,
   ) {
     const request: FlowRequest = {
       operation: "start-flow",
       "flow-id": id,
-      "class-name": class_name,
+      "blueprint-name": blueprint_name,
       description: description,
     };
 
@@ -1761,13 +1761,13 @@ export class ConfigApi {
    * Retrieves token cost information for different AI models
    * Useful for cost tracking and optimization
    */
-  getTokenCosts() {
+  getTokenCost() {
     return this.api
       .makeRequest<ConfigRequest, ConfigResponse>(
         "config",
         {
           operation: "getvalues",
-          type: "token-costs",
+          type: "token-cost",
         },
         60000,
       )
