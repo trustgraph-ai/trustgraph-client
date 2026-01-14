@@ -1761,7 +1761,7 @@ export class ConfigApi {
    * Retrieves token cost information for different AI models
    * Useful for cost tracking and optimization
    */
-  getTokenCost() {
+  getTokenCosts() {
     return this.api
       .makeRequest<ConfigRequest, ConfigResponse>(
         "config",
