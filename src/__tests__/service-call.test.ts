@@ -82,13 +82,14 @@ describe("ServiceCall", () => {
   });
 
   it("should handle successful response", () => {
-    const response = { result: "success" };
+    const responseData = { result: "success" };
+    const message = { response: responseData };
 
     serviceCall.start();
-    serviceCall.onReceived(response);
+    serviceCall.onReceived(message);
 
     expect(serviceCall.complete).toBe(true);
-    expect(mockSuccess).toHaveBeenCalledWith(response);
+    expect(mockSuccess).toHaveBeenCalledWith(responseData);
     expect(mockClearTimeout).toHaveBeenCalled();
     expect(mockSocket.inflight["test-mid"]).toBeUndefined();
   });
@@ -211,13 +212,14 @@ describe("ServiceCall", () => {
   it("should clean up properly on successful response", () => {
     serviceCall.start();
 
-    const response = { success: true };
-    serviceCall.onReceived(response);
+    const responseData = { success: true };
+    const message = { response: responseData };
+    serviceCall.onReceived(message);
 
     expect(serviceCall.complete).toBe(true);
     expect(mockClearTimeout).toHaveBeenCalled();
     expect(mockSocket.inflight["test-mid"]).toBeUndefined();
-    expect(mockSuccess).toHaveBeenCalledWith(response);
+    expect(mockSuccess).toHaveBeenCalledWith(responseData);
   });
 
   it("should handle edge case of negative retries", () => {

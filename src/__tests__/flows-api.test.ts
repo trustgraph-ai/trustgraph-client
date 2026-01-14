@@ -198,10 +198,10 @@ describe("FlowsApi", () => {
 
   describe("getFlowBlueprint", () => {
     it("should call makeRequest with correct parameters and parse JSON", async () => {
-      const classDefinition = { type: "class", name: "test-class" };
+      const blueprintDefinition = { type: "blueprint", name: "test-blueprint" };
       const mockResponse: FlowResponse = {
-        "class-definition": JSON.stringify(classDefinition), // Must be valid JSON string
-        description: "Test class",
+        "blueprint-definition": JSON.stringify(blueprintDefinition), // Must be valid JSON string
+        description: "Test blueprint",
       };
       mockApi.makeRequest.mockResolvedValue(mockResponse);
 
@@ -215,7 +215,7 @@ describe("FlowsApi", () => {
         },
         60000,
       );
-      expect(result).toEqual(classDefinition); // Result should be parsed JSON
+      expect(result).toEqual(blueprintDefinition); // Result should be parsed JSON
     });
   });
 });
