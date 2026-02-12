@@ -1,5 +1,5 @@
 // Import core types and classes for the TrustGraph API
-import { Triple, Value } from "../models/Triple";
+import { Triple, Term } from "../models/Triple";
 import { ServiceCallMulti } from "./service-call-multi";
 import { ServiceCall } from "./service-call";
 
@@ -128,13 +128,13 @@ export interface Socket {
   embeddings: (text: string) => Promise<number[][]>;
 
   // Query graph using embedding vectors
-  graphEmbeddingsQuery: (vecs: number[][], limit: number) => Promise<Value[]>;
+  graphEmbeddingsQuery: (vecs: number[][], limit: number) => Promise<Term[]>;
 
   // Query knowledge graph triples (subject-predicate-object)
   triplesQuery: (
-    s?: Value, // Subject (optional)
-    p?: Value, // Predicate (optional)
-    o?: Value, // Object (optional)
+    s?: Term, // Subject (optional)
+    p?: Term, // Predicate (optional)
+    o?: Term, // Object (optional)
     limit?: number,
   ) => Promise<Triple[]>;
 
@@ -1472,9 +1472,9 @@ export class FlowApi {
    * All parameters are optional - omitted parameters act as wildcards
    */
   triplesQuery(
-    s?: Value,
-    p?: Value,
-    o?: Value,
+    s?: Term,
+    p?: Term,
+    o?: Term,
     limit?: number,
     collection?: string,
   ) {
