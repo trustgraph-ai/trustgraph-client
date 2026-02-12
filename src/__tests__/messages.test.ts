@@ -184,29 +184,30 @@ describe("Message Types", () => {
     it("should have correct structure", () => {
       const response: GraphEmbeddingsQueryResponse = {
         entities: [
-          { v: "entity1", e: false },
-          { v: "entity2", e: true },
+          { t: "i", i: "http://example.org/entity1" },
+          { t: "i", i: "http://example.org/entity2" },
         ],
       };
 
       expect(response.entities).toHaveLength(2);
-      expect(response.entities[0].v).toBe("entity1");
-      expect(response.entities[1].v).toBe("entity2");
+      expect(response.entities[0].t).toBe("i");
+      expect((response.entities[0] as { t: "i"; i: string }).i).toBe("http://example.org/entity1");
+      expect((response.entities[1] as { t: "i"; i: string }).i).toBe("http://example.org/entity2");
     });
   });
 
   describe("TriplesQueryRequest", () => {
     it("should have correct structure with all fields", () => {
       const request: TriplesQueryRequest = {
-        s: { v: "subject", e: false },
-        p: { v: "predicate", e: true },
-        o: { v: "object", e: false },
+        s: { t: "i", i: "http://example.org/subject" },
+        p: { t: "i", i: "http://example.org/predicate" },
+        o: { t: "l", v: "object value" },
         limit: 100,
       };
 
-      expect(request.s?.v).toBe("subject");
-      expect(request.p?.v).toBe("predicate");
-      expect(request.o?.v).toBe("object");
+      expect((request.s as { t: "i"; i: string }).i).toBe("http://example.org/subject");
+      expect((request.p as { t: "i"; i: string }).i).toBe("http://example.org/predicate");
+      expect((request.o as { t: "l"; v: string }).v).toBe("object value");
       expect(request.limit).toBe(100);
     });
 
@@ -229,9 +230,9 @@ describe("Message Types", () => {
         data: "base64-encoded-document-data",
         metadata: [
           {
-            s: { v: "doc-123", e: false },
-            p: { v: "title", e: true },
-            o: { v: "Test Document", e: false },
+            s: { t: "i", i: "http://example.org/doc-123" },
+            p: { t: "i", i: "http://example.org/title" },
+            o: { t: "l", v: "Test Document" },
           },
         ],
       };

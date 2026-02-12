@@ -1,4 +1,4 @@
-import { Triple, Value } from "./Triple";
+import { Triple, Term } from "./Triple";
 
 // FIXME: Better types?
 export type Request = object;
@@ -25,7 +25,7 @@ export interface Metadata {
 }
 
 export interface EntityEmbeddings {
-  entity?: Value;
+  entity?: Term;
   vectors?: number[][];
 }
 
@@ -144,13 +144,13 @@ export interface GraphEmbeddingsQueryRequest {
 }
 
 export interface GraphEmbeddingsQueryResponse {
-  entities: Value[];
+  entities: Term[];
 }
 
 export interface TriplesQueryRequest {
-  s?: Value;
-  p?: Value;
-  o?: Value;
+  s?: Term;
+  p?: Term;
+  o?: Term;
   limit: number;
   user?: string;
   collection?: string;
