@@ -5,6 +5,11 @@ export type Request = object;
 export type Response = object;
 export type Error = object | string;
 
+export interface ResponseError {
+  type?: string;
+  message: string;
+}
+
 export interface RequestMessage {
   id: string;
   service: string;
@@ -120,7 +125,7 @@ export interface AgentResponse {
   thought?: string;
   observation?: string;
   answer?: string;
-  error?: string;
+  error?: ResponseError;
 
   // Token usage (appears in final message)
   in_token?: number;

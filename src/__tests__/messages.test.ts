@@ -135,10 +135,11 @@ describe("Message Types", () => {
 
     it("should handle error response", () => {
       const response: AgentResponse = {
-        error: "Weather service unavailable",
+        error: { type: "agent-error", message: "Weather service unavailable" },
       };
 
-      expect(response.error).toBe("Weather service unavailable");
+      expect(response.error?.message).toBe("Weather service unavailable");
+      expect(response.error?.type).toBe("agent-error");
     });
   });
 

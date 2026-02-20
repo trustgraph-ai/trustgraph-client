@@ -1127,11 +1127,7 @@ export class FlowApi {
 
       // Check for errors in response
       if (resp.chunk_type === "error" || resp.error) {
-        const errorMessage =
-          resp.content || resp.error || "Unknown agent error";
-        error(
-          typeof errorMessage === "string" ? errorMessage : String(errorMessage),
-        );
+        error(resp.error?.message || "Unknown agent error");
         return true; // End streaming on error
       }
 
