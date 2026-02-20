@@ -36,6 +36,7 @@ import {
   PromptResponse,
   //  ProcessingMetadata,
   RequestMessage,
+  ResponseError,
   StructuredQueryRequest,
   StructuredQueryResponse,
   TextCompletionRequest,
@@ -69,6 +70,14 @@ export interface StreamingMetadata {
 const SOCKET_RECONNECTION_TIMEOUT = 2000; // 2 seconds between reconnection
 // attempts
 const SOCKET_URL = "/api/socket"; // WebSocket endpoint path
+
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && "message" in error) {
+    return String((error as ResponseError).message);
+  }
+  return "Unknown error";
+}
 
 /**
  * Socket interface defining all available operations for the TrustGraph API
@@ -1128,10 +1137,8 @@ export class FlowApi {
       // Check for errors in response
       if (resp.chunk_type === "error" || resp.error) {
         const errorMessage =
-          resp.content || resp.error || "Unknown agent error";
-        error(
-          typeof errorMessage === "string" ? errorMessage : String(errorMessage),
-        );
+          resp.content || extractErrorMessage(resp.error) || "Unknown agent error";
+        error(errorMessage);
         return true; // End streaming on error
       }
 
