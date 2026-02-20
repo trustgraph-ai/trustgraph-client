@@ -125,7 +125,7 @@ export interface AgentResponse {
   thought?: string;
   observation?: string;
   answer?: string;
-  error?: string | ResponseError;
+  error?: ResponseError;
 
   // Token usage (appears in final message)
   in_token?: number;
