@@ -30,8 +30,8 @@ import {
   LoadTextResponse,
   NlpQueryRequest,
   NlpQueryResponse,
-  ObjectsQueryRequest,
-  ObjectsQueryResponse,
+  RowsQueryRequest,
+  RowsQueryResponse,
   PromptRequest,
   PromptResponse,
   //  ProcessingMetadata,
@@ -1537,17 +1537,17 @@ export class FlowApi {
   }
 
   /**
-   * Executes a GraphQL query against structured data objects
+   * Executes a GraphQL query against structured row data
    */
-  objectsQuery(
+  rowsQuery(
     query: string,
     collection?: string,
     variables?: Record<string, unknown>,
     operationName?: string,
   ) {
     return this.api
-      .makeRequest<ObjectsQueryRequest, ObjectsQueryResponse>(
-        "objects",
+      .makeRequest<RowsQueryRequest, RowsQueryResponse>(
+        "rows",
         {
           query: query,
           user: this.api.user,
@@ -1750,7 +1750,7 @@ export class ConfigApi {
         },
         60000,
       )
-      .then((r) => (r as ObjectsQueryResponse).values);
+      .then((r) => (r as RowsQueryResponse).values);
   }
 
   /**
@@ -1769,7 +1769,7 @@ export class ConfigApi {
       )
       .then((r) => {
         // Parse JSON values and restructure data
-        const response = r as ObjectsQueryResponse;
+        const response = r as RowsQueryResponse;
         return (response.values || []).map((x: unknown) => {
           const item = x as Record<string, string>;
           return { key: item.key, value: JSON.parse(item.value) };
