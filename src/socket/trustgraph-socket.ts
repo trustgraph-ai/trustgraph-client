@@ -1645,7 +1645,7 @@ export class FlowApi {
 
     return this.api
       .makeRequest<RowEmbeddingsQueryRequest, RowEmbeddingsQueryResponse>(
-        "row-embeddings-query",
+        "row-embeddings",
         request,
         30000,
         undefined,
