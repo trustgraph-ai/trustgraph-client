@@ -32,6 +32,9 @@ import {
   NlpQueryResponse,
   RowsQueryRequest,
   RowsQueryResponse,
+  RowEmbeddingsQueryRequest,
+  RowEmbeddingsQueryResponse,
+  RowEmbeddingsMatch,
   PromptRequest,
   PromptResponse,
   //  ProcessingMetadata,
@@ -1610,6 +1613,49 @@ export class FlowApi {
         if (r.data !== undefined) result.data = r.data;
         if (r.errors) result.errors = r.errors;
         return result;
+      });
+  }
+
+  /**
+   * Performs semantic search on structured data indexes using embedding vectors
+   * @param vectors - Embedding vectors to search for
+   * @param schemaName - Name of the schema to search
+   * @param collection - Optional collection name
+   * @param indexName - Optional index name to filter results
+   * @param limit - Maximum number of results to return (default: 10)
+   */
+  rowEmbeddingsQuery(
+    vectors: number[][],
+    schemaName: string,
+    collection?: string,
+    indexName?: string,
+    limit?: number,
+  ): Promise<RowEmbeddingsMatch[]> {
+    const request: RowEmbeddingsQueryRequest = {
+      vectors: vectors,
+      schema_name: schemaName,
+      user: this.api.user,
+      collection: collection || "default",
+      limit: limit || 10,
+    };
+
+    if (indexName) {
+      request.index_name = indexName;
+    }
+
+    return this.api
+      .makeRequest<RowEmbeddingsQueryRequest, RowEmbeddingsQueryResponse>(
+        "row-embeddings-query",
+        request,
+        30000,
+        undefined,
+        this.flowId,
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+        return r.matches || [];
       });
   }
 }
