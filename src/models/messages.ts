@@ -203,6 +203,30 @@ export interface StructuredQueryResponse {
   errors?: Record<string, unknown>[];
 }
 
+export interface RowEmbeddingsQueryRequest {
+  vectors: number[][];
+  schema_name: string;
+  user?: string;
+  collection?: string;
+  index_name?: string;
+  limit?: number;
+}
+
+export interface RowEmbeddingsMatch {
+  index_name: string;
+  index_value: string[];
+  text: string;
+  score: number;
+}
+
+export interface RowEmbeddingsQueryResponse {
+  matches?: RowEmbeddingsMatch[];
+  error?: {
+    message: string;
+    type?: string;
+  };
+}
+
 export interface LoadDocumentRequest {
   id?: string;
   data: string;
