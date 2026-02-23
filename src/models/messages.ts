@@ -165,7 +165,7 @@ export interface TriplesQueryResponse {
   response: Triple[];
 }
 
-export interface ObjectsQueryRequest {
+export interface RowsQueryRequest {
   query: string;
   user?: string;
   collection?: string;
@@ -173,7 +173,7 @@ export interface ObjectsQueryRequest {
   operation_name?: string;
 }
 
-export interface ObjectsQueryResponse {
+export interface RowsQueryResponse {
   data?: Record<string, unknown>;
   errors?: Record<string, unknown>[];
   extensions?: Record<string, unknown>;
