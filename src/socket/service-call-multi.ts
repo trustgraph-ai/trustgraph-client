@@ -69,6 +69,23 @@ export class ServiceCallMulti {
     }
   }
 
+  /**
+   * Called when socket connects - immediately retry if we were waiting
+   */
+  retryNow() {
+    if (this.complete) return;
+
+    // Clear any pending backoff timer
+    clearTimeout(this.timeoutId);
+    this.timeoutId = undefined;
+
+    // Restore retry count since we didn't actually fail
+    this.retries++;
+
+    // Attempt immediately
+    this.attempt();
+  }
+
   onTimeout() {
     if (this.complete == true)
       console.log(

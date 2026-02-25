@@ -399,6 +399,11 @@ export class BaseApi {
 
     // Notify UI of successful connection
     this.notifyStateChange();
+
+    // Immediately retry any pending requests that were waiting for connection
+    for (const mid in this.inflight) {
+      this.inflight[mid].retryNow();
+    }
   }
 
   // Handle socket errors
