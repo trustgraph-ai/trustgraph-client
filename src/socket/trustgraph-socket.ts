@@ -46,6 +46,23 @@ import {
   TextCompletionResponse,
   TriplesQueryRequest,
   TriplesQueryResponse,
+  // Chunked upload types
+  ChunkedUploadDocumentMetadata,
+  BeginUploadRequest,
+  BeginUploadResponse,
+  UploadChunkRequest,
+  UploadChunkResponse,
+  CompleteUploadRequest,
+  CompleteUploadResponse,
+  GetUploadStatusRequest,
+  GetUploadStatusResponse,
+  AbortUploadRequest,
+  AbortUploadResponse,
+  ListUploadsRequest,
+  ListUploadsResponse,
+  UploadSession,
+  StreamDocumentRequest,
+  StreamDocumentResponse,
   //  EntityEmbeddings,
   //  Error,
   //  GraphEmbedding,
@@ -788,6 +805,218 @@ export class LibrarianApi {
         },
       },
       30000,
+    );
+  }
+
+  // ========== Chunked Upload API ==========
+
+  /**
+   * Initialize a chunked upload session for large documents (>2MB)
+   * @param metadata - Document metadata including id, title, kind (MIME type), etc.
+   * @param totalSize - Total size of the document in bytes
+   * @param chunkSize - Optional chunk size (default: 5MB)
+   * @returns Upload session info including upload-id and total-chunks
+   */
+  beginUpload(
+    metadata: ChunkedUploadDocumentMetadata,
+    totalSize: number,
+    chunkSize?: number,
+  ): Promise<BeginUploadResponse> {
+    return this.api
+      .makeRequest<BeginUploadRequest, BeginUploadResponse>(
+        "librarian",
+        {
+          operation: "begin-upload",
+          "document-metadata": metadata,
+          "total-size": totalSize,
+          "chunk-size": chunkSize,
+        },
+        30000,
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+        return r;
+      });
+  }
+
+  /**
+   * Upload a single chunk of a document
+   * Chunks can be uploaded in any order and in parallel
+   * @param uploadId - Upload session ID from beginUpload
+   * @param chunkIndex - Zero-based chunk index
+   * @param content - Base64-encoded chunk content
+   * @returns Progress info including chunks-received and bytes-received
+   */
+  uploadChunk(
+    uploadId: string,
+    chunkIndex: number,
+    content: string,
+  ): Promise<UploadChunkResponse> {
+    return this.api
+      .makeRequest<UploadChunkRequest, UploadChunkResponse>(
+        "librarian",
+        {
+          operation: "upload-chunk",
+          "upload-id": uploadId,
+          "chunk-index": chunkIndex,
+          content: content,
+          user: this.api.user,
+        },
+        60000, // Longer timeout for chunk uploads
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+        return r;
+      });
+  }
+
+  /**
+   * Finalize a chunked upload after all chunks are received
+   * Triggers document processing
+   * @param uploadId - Upload session ID from beginUpload
+   * @returns Document ID and object ID
+   */
+  completeUpload(uploadId: string): Promise<CompleteUploadResponse> {
+    return this.api
+      .makeRequest<CompleteUploadRequest, CompleteUploadResponse>(
+        "librarian",
+        {
+          operation: "complete-upload",
+          "upload-id": uploadId,
+          user: this.api.user,
+        },
+        30000,
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+        return r;
+      });
+  }
+
+  /**
+   * Check upload progress (useful for resuming interrupted uploads)
+   * @param uploadId - Upload session ID
+   * @returns Status including received/missing chunks
+   */
+  getUploadStatus(uploadId: string): Promise<GetUploadStatusResponse> {
+    return this.api
+      .makeRequest<GetUploadStatusRequest, GetUploadStatusResponse>(
+        "librarian",
+        {
+          operation: "get-upload-status",
+          "upload-id": uploadId,
+          user: this.api.user,
+        },
+        30000,
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+        return r;
+      });
+  }
+
+  /**
+   * Cancel an in-progress upload and clean up
+   * @param uploadId - Upload session ID to abort
+   */
+  abortUpload(uploadId: string): Promise<void> {
+    return this.api
+      .makeRequest<AbortUploadRequest, AbortUploadResponse>(
+        "librarian",
+        {
+          operation: "abort-upload",
+          "upload-id": uploadId,
+          user: this.api.user,
+        },
+        30000,
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+      });
+  }
+
+  /**
+   * List pending upload sessions for the current user
+   * @returns Array of upload sessions with metadata and progress
+   */
+  listUploads(): Promise<UploadSession[]> {
+    return this.api
+      .makeRequest<ListUploadsRequest, ListUploadsResponse>(
+        "librarian",
+        {
+          operation: "list-uploads",
+          user: this.api.user,
+        },
+        30000,
+      )
+      .then((r) => {
+        if (r.error) {
+          throw new Error(r.error.message);
+        }
+        return r["upload-sessions"] || [];
+      });
+  }
+
+  /**
+   * Stream a document in chunks for retrieval (streaming response)
+   * Sends one request, receives multiple chunk responses via callback
+   * @param documentId - Document ID to retrieve
+   * @param onChunk - Callback for each chunk: (content, chunkIndex, totalChunks, complete) => void
+   * @param onError - Callback for errors
+   * @param chunkSize - Optional chunk size (default: 1MB)
+   */
+  streamDocument(
+    documentId: string,
+    onChunk: (content: string, chunkIndex: number, totalChunks: number, complete: boolean) => void,
+    onError: (error: string) => void,
+    chunkSize?: number,
+  ): void {
+    const receiver = (message: unknown): boolean => {
+      const msg = message as { response?: StreamDocumentResponse; complete?: boolean; error?: string };
+
+      // Check for top-level error
+      if (msg.error) {
+        onError(msg.error);
+        return true;
+      }
+
+      const resp = msg.response;
+      if (!resp) {
+        return !!msg.complete;
+      }
+
+      // Check for response-level error
+      if (resp.error) {
+        onError(resp.error.message);
+        return true;
+      }
+
+      const complete = !!msg.complete;
+      onChunk(resp.content, resp["chunk-index"], resp["total-chunks"], complete);
+
+      return complete;
+    };
+
+    this.api.makeRequestMulti<StreamDocumentRequest, StreamDocumentResponse>(
+      "librarian",
+      {
+        operation: "stream-document",
+        "document-id": documentId,
+        "chunk-size": chunkSize,
+        user: this.api.user,
+      },
+      receiver,
+      300000, // 5 minute timeout for full document stream
     );
   }
 }
