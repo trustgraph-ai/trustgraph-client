@@ -134,11 +134,11 @@ export interface AgentResponse {
 }
 
 export interface EmbeddingsRequest {
-  text: string;
+  texts: string[];
 }
 
 export interface EmbeddingsResponse {
-  vectors: number[][];
+  vectors: number[][][];
 }
 
 export interface GraphEmbeddingsQueryRequest {
