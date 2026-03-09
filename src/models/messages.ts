@@ -467,17 +467,13 @@ export interface ListUploadsResponse {
 export interface StreamDocumentRequest {
   operation: "stream-document";
   "document-id": string;
-  "chunk-index": number;
   "chunk-size"?: number;
   user: string;
 }
 
 export interface StreamDocumentResponse {
-  content: string;  // base64-encoded
+  content: string;  // base64-encoded chunk
   "chunk-index": number;
-  "chunks-received": number;
   "total-chunks": number;
-  "bytes-received": number;
-  "total-bytes": number;
   error?: ResponseError;
 }

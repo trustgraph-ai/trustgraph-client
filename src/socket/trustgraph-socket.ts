@@ -968,35 +968,56 @@ export class LibrarianApi {
   }
 
   /**
-   * Stream a document in chunks for retrieval
+   * Stream a document in chunks for retrieval (streaming response)
+   * Sends one request, receives multiple chunk responses via callback
    * @param documentId - Document ID to retrieve
-   * @param chunkIndex - Zero-based chunk index to retrieve
+   * @param onChunk - Callback for each chunk: (content, chunkIndex, totalChunks, complete) => void
+   * @param onError - Callback for errors
    * @param chunkSize - Optional chunk size (default: 1MB)
-   * @returns Chunk content and progress info
    */
   streamDocument(
     documentId: string,
-    chunkIndex: number,
+    onChunk: (content: string, chunkIndex: number, totalChunks: number, complete: boolean) => void,
+    onError: (error: string) => void,
     chunkSize?: number,
-  ): Promise<StreamDocumentResponse> {
-    return this.api
-      .makeRequest<StreamDocumentRequest, StreamDocumentResponse>(
-        "librarian",
-        {
-          operation: "stream-document",
-          "document-id": documentId,
-          "chunk-index": chunkIndex,
-          "chunk-size": chunkSize,
-          user: this.api.user,
-        },
-        60000, // Longer timeout for chunk downloads
-      )
-      .then((r) => {
-        if (r.error) {
-          throw new Error(r.error.message);
-        }
-        return r;
-      });
+  ): void {
+    const receiver = (message: unknown): boolean => {
+      const msg = message as { response?: StreamDocumentResponse; complete?: boolean; error?: string };
+
+      // Check for top-level error
+      if (msg.error) {
+        onError(msg.error);
+        return true;
+      }
+
+      const resp = msg.response;
+      if (!resp) {
+        return !!msg.complete;
+      }
+
+      // Check for response-level error
+      if (resp.error) {
+        onError(resp.error.message);
+        return true;
+      }
+
+      const complete = !!msg.complete;
+      onChunk(resp.content, resp["chunk-index"], resp["total-chunks"], complete);
+
+      return complete;
+    };
+
+    this.api.makeRequestMulti<StreamDocumentRequest, StreamDocumentResponse>(
+      "librarian",
+      {
+        operation: "stream-document",
+        "document-id": documentId,
+        "chunk-size": chunkSize,
+        user: this.api.user,
+      },
+      receiver,
+      300000, // 5 minute timeout for full document stream
+    );
   }
 }
 
