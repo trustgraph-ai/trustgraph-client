@@ -356,3 +356,128 @@ export interface PromptResponse {
 
 export type ConfigRequest = object;
 export type ConfigResponse = object;
+
+// Chunked Upload Types
+
+export interface ChunkedUploadDocumentMetadata {
+  id: string;
+  time: number;
+  kind: string;
+  title: string;
+  comments?: string;
+  metadata?: Triple[];
+  user: string;
+  collection?: string;
+  tags?: string[];
+}
+
+export interface BeginUploadRequest {
+  operation: "begin-upload";
+  "document-metadata": ChunkedUploadDocumentMetadata;
+  "total-size": number;
+  "chunk-size"?: number;
+}
+
+export interface BeginUploadResponse {
+  "upload-id": string;
+  "chunk-size": number;
+  "total-chunks": number;
+  error?: ResponseError;
+}
+
+export interface UploadChunkRequest {
+  operation: "upload-chunk";
+  "upload-id": string;
+  "chunk-index": number;
+  content: string;  // base64-encoded
+  user: string;
+}
+
+export interface UploadChunkResponse {
+  "upload-id": string;
+  "chunk-index": number;
+  "chunks-received": number;
+  "total-chunks": number;
+  "bytes-received": number;
+  "total-bytes": number;
+  error?: ResponseError;
+}
+
+export interface CompleteUploadRequest {
+  operation: "complete-upload";
+  "upload-id": string;
+  user: string;
+}
+
+export interface CompleteUploadResponse {
+  "document-id": string;
+  "object-id": string;
+  error?: ResponseError;
+}
+
+export interface GetUploadStatusRequest {
+  operation: "get-upload-status";
+  "upload-id": string;
+  user: string;
+}
+
+export interface GetUploadStatusResponse {
+  "upload-id": string;
+  "upload-state": "in-progress" | "completed" | "expired";
+  "chunks-received": number;
+  "total-chunks": number;
+  "received-chunks": number[];
+  "missing-chunks": number[];
+  "bytes-received": number;
+  "total-bytes": number;
+  error?: ResponseError;
+}
+
+export interface AbortUploadRequest {
+  operation: "abort-upload";
+  "upload-id": string;
+  user: string;
+}
+
+export interface AbortUploadResponse {
+  error?: ResponseError;
+}
+
+export interface ListUploadsRequest {
+  operation: "list-uploads";
+  user: string;
+}
+
+export interface UploadSession {
+  "upload-id": string;
+  "document-id": string;
+  "document-metadata-json": string;
+  "total-size": number;
+  "chunk-size": number;
+  "total-chunks": number;
+  "chunks-received": number;
+  "created-at": string;
+}
+
+export interface ListUploadsResponse {
+  "upload-sessions": UploadSession[];
+  error?: ResponseError;
+}
+
+export interface StreamDocumentRequest {
+  operation: "stream-document";
+  "document-id": string;
+  "chunk-index": number;
+  "chunk-size"?: number;
+  user: string;
+}
+
+export interface StreamDocumentResponse {
+  content: string;  // base64-encoded
+  "chunk-index": number;
+  "chunks-received": number;
+  "total-chunks": number;
+  "bytes-received": number;
+  "total-bytes": number;
+  error?: ResponseError;
+}
