@@ -186,15 +186,16 @@ describe("Message Types", () => {
     it("should have correct structure", () => {
       const response: GraphEmbeddingsQueryResponse = {
         entities: [
-          { t: "i", i: "http://example.org/entity1" },
-          { t: "i", i: "http://example.org/entity2" },
+          { entity: { t: "i", i: "http://example.org/entity1" }, score: 0.95 },
+          { entity: { t: "i", i: "http://example.org/entity2" }, score: 0.87 },
         ],
       };
 
       expect(response.entities).toHaveLength(2);
-      expect(response.entities[0].t).toBe("i");
-      expect((response.entities[0] as { t: "i"; i: string }).i).toBe("http://example.org/entity1");
-      expect((response.entities[1] as { t: "i"; i: string }).i).toBe("http://example.org/entity2");
+      expect(response.entities[0].score).toBe(0.95);
+      expect(response.entities[0].entity?.t).toBe("i");
+      expect((response.entities[0].entity as { t: "i"; i: string }).i).toBe("http://example.org/entity1");
+      expect(response.entities[1].score).toBe(0.87);
     });
   });
 

@@ -132,7 +132,7 @@ export interface Socket {
   embeddings: (texts: string[]) => Promise<number[][]>;
 
   // Query graph using embedding vector
-  graphEmbeddingsQuery: (vec: number[], limit: number) => Promise<Term[]>;
+  graphEmbeddingsQuery: (vec: number[], limit: number) => Promise<EntityMatch[]>;
 
   // Query knowledge graph triples (subject-predicate-object)
   triplesQuery: (
