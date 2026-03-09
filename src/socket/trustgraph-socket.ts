@@ -14,6 +14,7 @@ import {
   DocumentRagResponse,
   EmbeddingsRequest,
   EmbeddingsResponse,
+  EntityMatch,
   FlowRequest,
   FlowResponse,
   GraphEmbeddingsQueryRequest,
@@ -128,10 +129,10 @@ export interface Socket {
   ) => void;
 
   // Generate embeddings for texts (batch)
-  embeddings: (texts: string[]) => Promise<number[][][]>;
+  embeddings: (texts: string[]) => Promise<number[][]>;
 
-  // Query graph using embedding vectors
-  graphEmbeddingsQuery: (vecs: number[][], limit: number) => Promise<Term[]>;
+  // Query graph using embedding vector
+  graphEmbeddingsQuery: (vec: number[], limit: number) => Promise<EntityMatch[]>;
 
   // Query knowledge graph triples (subject-predicate-object)
   triplesQuery: (
@@ -1432,7 +1433,7 @@ export class FlowApi {
 
   /**
    * Generates embeddings for multiple texts within this flow.
-   * Returns vectors[text_index][vector_index][dimension_index].
+   * Returns vectors[text_index][dimension_index] - one vector per input text.
    */
   embeddings(texts: string[]) {
     return this.api
@@ -1449,10 +1450,10 @@ export class FlowApi {
   }
 
   /**
-   * Queries the knowledge graph using embedding vectors
+   * Queries the knowledge graph using a single embedding vector
    */
   graphEmbeddingsQuery(
-    vecs: number[][],
+    vec: number[],
     limit: number | undefined,
     collection?: string,
   ) {
@@ -1460,7 +1461,7 @@ export class FlowApi {
       .makeRequest<GraphEmbeddingsQueryRequest, GraphEmbeddingsQueryResponse>(
         "graph-embeddings",
         {
-          vectors: vecs,
+          vector: vec,
           limit: limit ? limit : 20, // Default to 20 results
           user: this.api.user,
           collection: collection || "default",
@@ -1631,14 +1632,14 @@ export class FlowApi {
    * @param limit - Maximum number of results to return (default: 10)
    */
   rowEmbeddingsQuery(
-    vectors: number[][],
+    vector: number[],
     schemaName: string,
     collection?: string,
     indexName?: string,
     limit?: number,
   ): Promise<RowEmbeddingsMatch[]> {
     const request: RowEmbeddingsQueryRequest = {
-      vectors: vectors,
+      vector: vector,
       schema_name: schemaName,
       user: this.api.user,
       collection: collection || "default",

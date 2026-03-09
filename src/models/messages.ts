@@ -138,18 +138,23 @@ export interface EmbeddingsRequest {
 }
 
 export interface EmbeddingsResponse {
-  vectors: number[][][];
+  vectors: number[][];  // One vector per input text
 }
 
 export interface GraphEmbeddingsQueryRequest {
-  vectors: number[][];
+  vector: number[];  // Single query vector
   limit: number;
   user?: string;
   collection?: string;
 }
 
+export interface EntityMatch {
+  entity: Term | null;
+  score: number;
+}
+
 export interface GraphEmbeddingsQueryResponse {
-  entities: Term[];
+  entities: EntityMatch[];
 }
 
 export interface TriplesQueryRequest {
@@ -204,7 +209,7 @@ export interface StructuredQueryResponse {
 }
 
 export interface RowEmbeddingsQueryRequest {
-  vectors: number[][];
+  vector: number[];  // Single query vector
   schema_name: string;
   user?: string;
   collection?: string;

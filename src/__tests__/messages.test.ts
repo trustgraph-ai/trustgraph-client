@@ -155,17 +155,17 @@ describe("Message Types", () => {
 
   describe("EmbeddingsResponse", () => {
     it("should have correct structure", () => {
-      // vectors[text_index][vector_index][dimension_index]
+      // vectors[text_index][dimension_index] - one vector per input text
       const response: EmbeddingsResponse = {
         vectors: [
-          [[0.1, 0.2, 0.3]],  // First text's vectors
-          [[0.4, 0.5, 0.6]],  // Second text's vectors
+          [0.1, 0.2, 0.3],  // First text's vector
+          [0.4, 0.5, 0.6],  // Second text's vector
         ],
       };
 
       expect(response.vectors).toEqual([
-        [[0.1, 0.2, 0.3]],
-        [[0.4, 0.5, 0.6]],
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
       ]);
     });
   });
@@ -173,11 +173,11 @@ describe("Message Types", () => {
   describe("GraphEmbeddingsQueryRequest", () => {
     it("should have correct structure", () => {
       const request: GraphEmbeddingsQueryRequest = {
-        vectors: [[0.1, 0.2, 0.3]],
+        vector: [0.1, 0.2, 0.3],
         limit: 10,
       };
 
-      expect(request.vectors).toEqual([[0.1, 0.2, 0.3]]);
+      expect(request.vector).toEqual([0.1, 0.2, 0.3]);
       expect(request.limit).toBe(10);
     });
   });
@@ -186,15 +186,16 @@ describe("Message Types", () => {
     it("should have correct structure", () => {
       const response: GraphEmbeddingsQueryResponse = {
         entities: [
-          { t: "i", i: "http://example.org/entity1" },
-          { t: "i", i: "http://example.org/entity2" },
+          { entity: { t: "i", i: "http://example.org/entity1" }, score: 0.95 },
+          { entity: { t: "i", i: "http://example.org/entity2" }, score: 0.87 },
         ],
       };
 
       expect(response.entities).toHaveLength(2);
-      expect(response.entities[0].t).toBe("i");
-      expect((response.entities[0] as { t: "i"; i: string }).i).toBe("http://example.org/entity1");
-      expect((response.entities[1] as { t: "i"; i: string }).i).toBe("http://example.org/entity2");
+      expect(response.entities[0].score).toBe(0.95);
+      expect(response.entities[0].entity?.t).toBe("i");
+      expect((response.entities[0].entity as { t: "i"; i: string }).i).toBe("http://example.org/entity1");
+      expect(response.entities[1].score).toBe(0.87);
     });
   });
 
