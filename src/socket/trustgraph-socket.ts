@@ -127,8 +127,8 @@ export interface Socket {
     onError: (error: string) => void,
   ) => void;
 
-  // Generate embeddings for text
-  embeddings: (text: string) => Promise<number[][]>;
+  // Generate embeddings for texts (batch)
+  embeddings: (texts: string[]) => Promise<number[][][]>;
 
   // Query graph using embedding vectors
   graphEmbeddingsQuery: (vecs: number[][], limit: number) => Promise<Term[]>;
@@ -1431,14 +1431,15 @@ export class FlowApi {
   }
 
   /**
-   * Generates embeddings for text within this flow
+   * Generates embeddings for multiple texts within this flow.
+   * Returns vectors[text_index][vector_index][dimension_index].
    */
-  embeddings(text: string) {
+  embeddings(texts: string[]) {
     return this.api
       .makeRequest<EmbeddingsRequest, EmbeddingsResponse>(
         "embeddings",
         {
-          text: text,
+          texts: texts,
         },
         30000,
         undefined,

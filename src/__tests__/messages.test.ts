@@ -146,25 +146,26 @@ describe("Message Types", () => {
   describe("EmbeddingsRequest", () => {
     it("should have correct structure", () => {
       const request: EmbeddingsRequest = {
-        text: "This is a test sentence for embedding",
+        texts: ["This is a test sentence for embedding", "Another text"],
       };
 
-      expect(request.text).toBe("This is a test sentence for embedding");
+      expect(request.texts).toEqual(["This is a test sentence for embedding", "Another text"]);
     });
   });
 
   describe("EmbeddingsResponse", () => {
     it("should have correct structure", () => {
+      // vectors[text_index][vector_index][dimension_index]
       const response: EmbeddingsResponse = {
         vectors: [
-          [0.1, 0.2, 0.3],
-          [0.4, 0.5, 0.6],
+          [[0.1, 0.2, 0.3]],  // First text's vectors
+          [[0.4, 0.5, 0.6]],  // Second text's vectors
         ],
       };
 
       expect(response.vectors).toEqual([
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6],
+        [[0.1, 0.2, 0.3]],
+        [[0.4, 0.5, 0.6]],
       ]);
     });
   });
