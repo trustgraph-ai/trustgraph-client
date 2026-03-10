@@ -83,6 +83,11 @@ export interface GraphRagResponse {
   in_token?: number;
   out_token?: number;
   model?: string;
+  // Explainability fields
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_graph?: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+  end_of_session?: boolean;
 }
 
 export interface DocumentRagRequest {
@@ -161,6 +166,7 @@ export interface TriplesQueryRequest {
   s?: Term;
   p?: Term;
   o?: Term;
+  g?: string;  // Named graph URI filter (plain string, not Term)
   limit: number;
   user?: string;
   collection?: string;
@@ -258,6 +264,7 @@ export interface DocumentMetadata {
   metadata?: Triple[];
   user?: string;
   tags?: string[];
+  "document-type"?: string;
 }
 
 export interface ProcessingMetadata {
