@@ -83,6 +83,11 @@ export interface GraphRagResponse {
   in_token?: number;
   out_token?: number;
   model?: string;
+  // Explainability fields
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_graph?: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+  end_of_session?: boolean;
 }
 
 export interface DocumentRagRequest {
@@ -106,6 +111,11 @@ export interface DocumentRagResponse {
   in_token?: number;
   out_token?: number;
   model?: string;
+  // Explainability fields
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_graph?: string;
+  end_of_session?: boolean;
 }
 
 export interface AgentRequest {
@@ -116,7 +126,7 @@ export interface AgentRequest {
 
 export interface AgentResponse {
   // Streaming response format (new protocol)
-  chunk_type?: "thought" | "action" | "observation" | "answer" | "final-answer" | "error";
+  chunk_type?: "thought" | "action" | "observation" | "answer" | "final-answer" | "explain" | "error";
   content?: string;
   end_of_message?: boolean;
   end_of_dialog?: boolean;
@@ -131,6 +141,11 @@ export interface AgentResponse {
   in_token?: number;
   out_token?: number;
   model?: string;
+
+  // Explainability fields
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_graph?: string;
 }
 
 export interface EmbeddingsRequest {
@@ -161,6 +176,7 @@ export interface TriplesQueryRequest {
   s?: Term;
   p?: Term;
   o?: Term;
+  g?: string;  // Named graph URI filter (plain string, not Term)
   limit: number;
   user?: string;
   collection?: string;
@@ -258,6 +274,7 @@ export interface DocumentMetadata {
   metadata?: Triple[];
   user?: string;
   tags?: string[];
+  "document-type"?: string;
 }
 
 export interface ProcessingMetadata {

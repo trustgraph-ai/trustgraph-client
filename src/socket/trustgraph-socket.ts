@@ -9,7 +9,7 @@ import {
   AgentResponse,
   ConfigRequest,
   ConfigResponse,
-  //  DocumentMetadata,
+  DocumentMetadata,
   DocumentRagRequest,
   DocumentRagResponse,
   EmbeddingsRequest,
@@ -86,6 +86,12 @@ export interface StreamingMetadata {
   model?: string;
 }
 
+// Explainability event data
+export interface ExplainEvent {
+  explainId: string;
+  explainGraph: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+}
+
 // Configuration constants
 const SOCKET_RECONNECTION_TIMEOUT = 2000; // 2 seconds between reconnection
 // attempts
@@ -113,6 +119,7 @@ export interface Socket {
     observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (e: string) => void,
+    onExplain?: (event: ExplainEvent) => void,
   ) => void;
 
   // Streaming variants for RAG and completion services
@@ -129,6 +136,8 @@ export interface Socket {
     receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     docLimit?: number,
+    collection?: string,
+    onExplain?: (event: ExplainEvent) => void,
   ) => void;
 
   textCompletionStreaming: (
@@ -157,6 +166,8 @@ export interface Socket {
     p?: Term, // Predicate (optional)
     o?: Term, // Object (optional)
     limit?: number,
+    collection?: string,
+    graph?: string, // Named graph URI filter
   ) => Promise<Triple[]>;
 
   // Load a document into the system
@@ -718,6 +729,25 @@ export class LibrarianApi {
         60000,
       )
       .then((r) => r["processing-metadata"] || []);
+  }
+
+  /**
+   * Retrieves metadata for a single document by ID
+   * @param documentId - Document URI/ID to fetch
+   * @returns Document metadata including title, comments, tags, and RDF metadata
+   */
+  getDocumentMetadata(documentId: string): Promise<DocumentMetadata | null> {
+    return this.api
+      .makeRequest<LibraryRequest, LibraryResponse>(
+        "librarian",
+        {
+          operation: "get-document-metadata",
+          "document-id": documentId,
+          user: this.api.user,
+        },
+        30000,
+      )
+      .then((r) => r["document-metadata"] || null);
   }
 
   /**
@@ -1351,6 +1381,7 @@ export class FlowApi {
     observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (s: string) => void,
+    onExplain?: (event: ExplainEvent) => void,
   ) {
     const receiver = (message: unknown) => {
       const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
@@ -1367,6 +1398,15 @@ export class FlowApi {
       if (resp.chunk_type === "error" || resp.error) {
         error(resp.error?.message || "Unknown agent error");
         return true; // End streaming on error
+      }
+
+      // Handle explainability events (agent uses chunk_type="explain")
+      if ((resp.chunk_type === "explain" || resp.message_type === "explain") && resp.explain_id && resp.explain_graph) {
+        onExplain?.({
+          explainId: resp.explain_id,
+          explainGraph: resp.explain_graph,
+        });
+        return false;
       }
 
       // Handle streaming chunks by chunk_type
@@ -1424,8 +1464,9 @@ export class FlowApi {
    * @param text - Query text
    * @param receiver - Called for each chunk with (chunk, complete) where complete=true on final chunk
    * @param onError - Called on error
-   * @param options - Graph RAG options
+   * @param options - Graph RAG options (including explainable flag)
    * @param collection - Collection name
+   * @param onExplain - Optional callback for explainability events
    */
   graphRagStreaming(
     text: string,
@@ -1433,6 +1474,7 @@ export class FlowApi {
     onError: (error: string) => void,
     options?: GraphRagOptions,
     collection?: string,
+    onExplain?: (event: ExplainEvent) => void,
   ): void {
     const recv = (message: unknown): boolean => {
       const msg = message as { response?: GraphRagResponse; complete?: boolean; error?: string };
@@ -1451,8 +1493,19 @@ export class FlowApi {
         return true;
       }
 
+      // Handle explainability events
+      if (resp.message_type === "explain" && resp.explain_id && resp.explain_graph) {
+        onExplain?.({
+          explainId: resp.explain_id,
+          explainGraph: resp.explain_graph,
+        });
+        // Don't return true - more messages may follow
+        return false;
+      }
+
+      // Handle chunk messages (default behavior)
       const chunk = resp.response || resp.chunk || "";
-      const complete = !!msg.complete;
+      const complete = !!resp.end_of_session || !!msg.complete;
 
       // Extract metadata from final message
       const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
@@ -1497,6 +1550,7 @@ export class FlowApi {
     onError: (error: string) => void,
     docLimit?: number,
     collection?: string,
+    onExplain?: (event: ExplainEvent) => void,
   ): void {
     const recv = (message: unknown): boolean => {
       const msg = message as { response?: DocumentRagResponse; complete?: boolean; error?: string };
@@ -1515,8 +1569,17 @@ export class FlowApi {
         return true;
       }
 
+      // Handle explainability events
+      if (resp.message_type === "explain" && resp.explain_id && resp.explain_graph) {
+        onExplain?.({
+          explainId: resp.explain_id,
+          explainGraph: resp.explain_graph,
+        });
+        return false;
+      }
+
       const chunk = resp.response || resp.chunk || "";
-      const complete = !!msg.complete;
+      const complete = !!resp.end_of_session || !!msg.complete;
 
       // Extract metadata from final message
       const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)
@@ -1712,6 +1775,7 @@ export class FlowApi {
     o?: Term,
     limit?: number,
     collection?: string,
+    graph?: string,
   ) {
     return this.api
       .makeRequest<TriplesQueryRequest, TriplesQueryResponse>(
@@ -1720,6 +1784,7 @@ export class FlowApi {
           s: s, // Subject
           p: p, // Predicate
           o: o, // Object
+          g: graph, // Named graph URI filter
           limit: limit ? limit : 20,
           user: this.api.user,
           collection: collection || "default",
