@@ -119,6 +119,7 @@ export interface Socket {
     observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (e: string) => void,
+    onExplain?: (event: ExplainEvent) => void,
   ) => void;
 
   // Streaming variants for RAG and completion services
@@ -135,6 +136,8 @@ export interface Socket {
     receiver: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     onError: (error: string) => void,
     docLimit?: number,
+    collection?: string,
+    onExplain?: (event: ExplainEvent) => void,
   ) => void;
 
   textCompletionStreaming: (
@@ -1378,6 +1381,7 @@ export class FlowApi {
     observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
     error: (s: string) => void,
+    onExplain?: (event: ExplainEvent) => void,
   ) {
     const receiver = (message: unknown) => {
       const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
@@ -1394,6 +1398,15 @@ export class FlowApi {
       if (resp.chunk_type === "error" || resp.error) {
         error(resp.error?.message || "Unknown agent error");
         return true; // End streaming on error
+      }
+
+      // Handle explainability events (agent uses chunk_type="explain")
+      if ((resp.chunk_type === "explain" || resp.message_type === "explain") && resp.explain_id && resp.explain_graph) {
+        onExplain?.({
+          explainId: resp.explain_id,
+          explainGraph: resp.explain_graph,
+        });
+        return false;
       }
 
       // Handle streaming chunks by chunk_type
@@ -1537,6 +1550,7 @@ export class FlowApi {
     onError: (error: string) => void,
     docLimit?: number,
     collection?: string,
+    onExplain?: (event: ExplainEvent) => void,
   ): void {
     const recv = (message: unknown): boolean => {
       const msg = message as { response?: DocumentRagResponse; complete?: boolean; error?: string };
@@ -1555,8 +1569,17 @@ export class FlowApi {
         return true;
       }
 
+      // Handle explainability events
+      if (resp.message_type === "explain" && resp.explain_id && resp.explain_graph) {
+        onExplain?.({
+          explainId: resp.explain_id,
+          explainGraph: resp.explain_graph,
+        });
+        return false;
+      }
+
       const chunk = resp.response || resp.chunk || "";
-      const complete = !!msg.complete;
+      const complete = !!resp.end_of_session || !!msg.complete;
 
       // Extract metadata from final message
       const metadata: StreamingMetadata | undefined = complete && (resp.in_token || resp.out_token || resp.model)

@@ -111,6 +111,11 @@ export interface DocumentRagResponse {
   in_token?: number;
   out_token?: number;
   model?: string;
+  // Explainability fields
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_graph?: string;
+  end_of_session?: boolean;
 }
 
 export interface AgentRequest {
@@ -121,7 +126,7 @@ export interface AgentRequest {
 
 export interface AgentResponse {
   // Streaming response format (new protocol)
-  chunk_type?: "thought" | "action" | "observation" | "answer" | "final-answer" | "error";
+  chunk_type?: "thought" | "action" | "observation" | "answer" | "final-answer" | "explain" | "error";
   content?: string;
   end_of_message?: boolean;
   end_of_dialog?: boolean;
@@ -136,6 +141,11 @@ export interface AgentResponse {
   in_token?: number;
   out_token?: number;
   model?: string;
+
+  // Explainability fields
+  message_type?: "chunk" | "explain";
+  explain_id?: string;
+  explain_graph?: string;
 }
 
 export interface EmbeddingsRequest {
