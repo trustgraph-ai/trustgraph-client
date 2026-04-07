@@ -56,16 +56,21 @@ export class ServiceCallMulti {
     if (this.complete == true)
       console.log(this.mid, "should not happen, request is already complete");
 
+    // Reset the timeout on every chunk — the server is still active as long
+    // as data keeps arriving.  Without this, long-running streaming requests
+    // (e.g. agent queries) would time out and retry mid-dialog.
+    clearTimeout(this.timeoutId);
+
     const fin = this.receiver(resp);
 
     if (fin) {
       this.complete = true;
-
-      //        console.log("Received for", this.mid);
-      clearTimeout(this.timeoutId);
       this.timeoutId = undefined;
       delete this.socket.inflight[this.mid];
       this.success(resp);
+    } else {
+      // Not done yet — restart the inactivity timer
+      this.timeoutId = setTimeout(this.onTimeout.bind(this), this.timeout);
     }
   }
 
