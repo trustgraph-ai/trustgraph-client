@@ -312,6 +312,7 @@ export interface LibraryResponse {
   content?: string;
   "document-metadatas"?: DocumentMetadata[];
   "processing-metadata"?: ProcessingMetadata;
+  "processing-metadatas"?: ProcessingMetadata[];
 }
 
 export interface KnowledgeRequest {

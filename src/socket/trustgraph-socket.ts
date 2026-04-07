@@ -729,7 +729,7 @@ export class LibrarianApi {
         },
         60000,
       )
-      .then((r) => r["processing-metadatas"] || r["processing-metadata"] || []);
+      .then((r) => r["processing-metadatas"] || []);
   }
 
   /**
