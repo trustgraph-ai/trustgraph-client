@@ -87,6 +87,7 @@ export interface GraphRagResponse {
   message_type?: "chunk" | "explain";
   explain_id?: string;
   explain_graph?: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+  explain_triples?: Triple[];
   end_of_session?: boolean;
 }
 
@@ -115,18 +116,21 @@ export interface DocumentRagResponse {
   message_type?: "chunk" | "explain";
   explain_id?: string;
   explain_graph?: string;
+  explain_triples?: Triple[];
   end_of_session?: boolean;
 }
 
 export interface AgentRequest {
   question: string;
   user?: string;
+  collection?: string;
   streaming?: boolean;
 }
 
 export interface AgentResponse {
   // Streaming response format (new protocol)
   chunk_type?: "thought" | "action" | "observation" | "answer" | "final-answer" | "explain" | "error";
+  message_id?: string;
   content?: string;
   end_of_message?: boolean;
   end_of_dialog?: boolean;
@@ -146,6 +150,7 @@ export interface AgentResponse {
   message_type?: "chunk" | "explain";
   explain_id?: string;
   explain_graph?: string;
+  explain_triples?: Triple[];
 }
 
 export interface EmbeddingsRequest {

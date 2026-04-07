@@ -90,6 +90,7 @@ export interface StreamingMetadata {
 export interface ExplainEvent {
   explainId: string;
   explainGraph: string;  // Named graph where explain data is stored (e.g., urn:graph:retrieval)
+  explainTriples?: Triple[];  // Inline provenance triples (avoids graph round-trip)
 }
 
 // Configuration constants
@@ -728,7 +729,7 @@ export class LibrarianApi {
         },
         60000,
       )
-      .then((r) => r["processing-metadata"] || []);
+      .then((r) => r["processing-metadatas"] || r["processing-metadata"] || []);
   }
 
   /**
@@ -1377,11 +1378,12 @@ export class FlowApi {
    */
   agent(
     question: string,
-    think: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
-    observe: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
-    answer: (chunk: string, complete: boolean, metadata?: StreamingMetadata) => void,
+    think: (chunk: string, complete: boolean, messageId?: string, metadata?: StreamingMetadata) => void,
+    observe: (chunk: string, complete: boolean, messageId?: string, metadata?: StreamingMetadata) => void,
+    answer: (chunk: string, complete: boolean, messageId?: string, metadata?: StreamingMetadata) => void,
     error: (s: string) => void,
     onExplain?: (event: ExplainEvent) => void,
+    collection?: string,
   ) {
     const receiver = (message: unknown) => {
       const msg = message as { response?: AgentResponse; complete?: boolean; error?: string };
@@ -1405,12 +1407,14 @@ export class FlowApi {
         onExplain?.({
           explainId: resp.explain_id,
           explainGraph: resp.explain_graph,
+          explainTriples: resp.explain_triples,
         });
         return false;
       }
 
       // Handle streaming chunks by chunk_type
       const content = resp.content || "";
+      const messageId = resp.message_id;
       const messageComplete = !!resp.end_of_message;
       const dialogComplete = !!msg.complete;
 
@@ -1421,14 +1425,14 @@ export class FlowApi {
 
       switch (resp.chunk_type) {
         case "thought":
-          think(content, messageComplete, metadata);
+          think(content, messageComplete, messageId, metadata);
           break;
         case "observation":
-          observe(content, messageComplete, metadata);
+          observe(content, messageComplete, messageId, metadata);
           break;
         case "answer":
         case "final-answer":
-          answer(content, messageComplete, metadata);
+          answer(content, messageComplete, messageId, metadata);
           break;
         case "action":
           // Actions are typically not streamed incrementally, just logged
@@ -1445,6 +1449,7 @@ export class FlowApi {
         {
           question: question,
           user: this.api.user,
+          collection: collection || "default",
           streaming: true, // Always use streaming mode
         },
         receiver,
@@ -1498,6 +1503,7 @@ export class FlowApi {
         onExplain?.({
           explainId: resp.explain_id,
           explainGraph: resp.explain_graph,
+          explainTriples: resp.explain_triples,
         });
         // Don't return true - more messages may follow
         return false;
@@ -1574,6 +1580,7 @@ export class FlowApi {
         onExplain?.({
           explainId: resp.explain_id,
           explainGraph: resp.explain_graph,
+          explainTriples: resp.explain_triples,
         });
         return false;
       }
