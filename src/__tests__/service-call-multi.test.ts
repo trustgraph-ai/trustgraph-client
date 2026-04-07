@@ -109,7 +109,7 @@ describe("ServiceCallMulti", () => {
     expect(mockReceiver).toHaveBeenCalledWith(response);
     expect(serviceCallMulti.complete).toBe(false);
     expect(mockSuccess).not.toHaveBeenCalled();
-    expect(mockClearTimeout).not.toHaveBeenCalled();
+    expect(mockClearTimeout).toHaveBeenCalled();
     expect(mockSocket.inflight["test-mid"]).toBe(serviceCallMulti);
   });
 
