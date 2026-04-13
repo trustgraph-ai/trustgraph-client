@@ -359,7 +359,7 @@ export interface FlowResponse {
 
 export interface PromptRequest {
   id: string;
-  terms: Record<string, unknown>;
+  variables: Record<string, unknown>;
   streaming?: boolean;
 }
 

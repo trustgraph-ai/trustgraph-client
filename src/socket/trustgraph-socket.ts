@@ -1720,7 +1720,7 @@ export class FlowApi {
       "prompt",
       {
         id: id,
-        terms: terms,
+        variables: terms,
         streaming: true,
       },
       recv,
